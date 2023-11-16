@@ -1,4 +1,5 @@
 # This script can be used to compile animated gifs from the individual pngs created by heatmaps_1and2MM_1del_individual.py
+# input directory, output directory, and png file prefix must be specified in the script below
 
 from PIL import Image
 import glob
