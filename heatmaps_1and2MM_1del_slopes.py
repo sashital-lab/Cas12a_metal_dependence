@@ -1,6 +1,7 @@
 # This script generates the heatmaps using slope files as input files. The slope files can be generated using "slopes_linear_fraction.py"
-# The 1 nt deletion sequences are analyzed separately (I'm being lazy and have not incorporated that into here!) using "single_nt_del.py"
-# Be sure to specify input/output directory and the input files below!
+# The 1 nt deletion sequences are analyzed separately using "single_nt_del.py"
+# Be sure to specify input/output directory and the input files below
+# Note that the first input filename must be something like Fn_W_1_lin_slopes.txt, i.e. must start with ortholog_gene_time
 
 import numpy as np
 import matplotlib.pyplot as plt
