@@ -1,6 +1,7 @@
 # This script can be used to generate heatmaps for the individual Mg2+ concentrations for either the SC or nicked fraction
 # This is meant to be run in the terminal (easiest if run in batch using a bash script)
-# The input files should be a file containing the average abundance score generated using the normalization scripts for either SC or nicked and the 1del file for the same (generated using single_nt_del.py)
+# The input files should be a file containing the average abundance score generated using the normalization scripts for either SC or nicked 
+# The 1 nt deletion sequences are extracted separately using "single_nt_del.py" and should be the second input file
 # Note that the first input filename must be something like Fn_W_1_SC_1mM.txt, i.e. ortholog_gene_time_fraction_Mgconc.txt
 
 import numpy as np
