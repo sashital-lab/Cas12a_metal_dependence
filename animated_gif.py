@@ -5,11 +5,11 @@ import glob
 import os
 
 # Specify the input and output directories
-input_dir = 'C:/Users/sashital/Box/Manuscripts/Cas12a_metal-dependent_specificity/figure_workshop/231104_heatmaps/nicked_png_1_2MM_1del'
-output_dir = 'C:/Users/sashital/Box/Manuscripts/Cas12a_metal-dependent_specificity/Figures/gifs_1MM_2MM_1del/gifs_nicked'
+input_dir = '' # specify input directory
+output_dir = '' # specify output directory
 
 # Specify the prefix of the frame filenames
-frame_prefix = 'As_L_1_nicked'
+frame_prefix = 'As_L_1_nicked' # specify prefix of all pngs to be compiled into gif 
 
 # Get the file paths of the frames
 frame_paths = glob.glob(os.path.join(input_dir, f'{frame_prefix}*.png'))
