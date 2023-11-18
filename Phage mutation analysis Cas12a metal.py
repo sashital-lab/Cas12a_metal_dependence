@@ -46,7 +46,7 @@ to_find2_R2 = 'AGCAGCAA'
 
 workbook = xlsxwriter.Workbook('(top)cas12a_escapers A R1R2.xlsx')  # naming the output excel sheet
 
-# selecting files to analyze, here it's all the Cas12a ones and the control
+# selecting files to analyze, here it's all the Cas12a variants
 total_file_list = []
 total_file_list += glob.glob('*As_A_*')
 total_file_list += glob.glob('*Fn_A_*')
@@ -182,7 +182,8 @@ for file_pair in total_file_list_pairs:
                     if mm_count_temp > 1:
                         multi_mm_sequences += 1
 
-                # making seq count list - to compare to control file to see if mutated sequence was there already
+                # making seq count list for calculation of nucleotide diversity showing information for each sequence
+                #control_count is not functional, need to implement comparison to a control file
                 in_list = False
                 for x in range(len(seq_count_list)):
                     if temp_sequence in seq_count_list[x][0]:
@@ -190,8 +191,8 @@ for file_pair in total_file_list_pairs:
                         in_list = True
                         break
                 if in_list == False:
-                    seq_count_list.append([temp_sequence,0,0,0,0,0,0])  #sequence, count, control count, status, base before, base after, position
-
+                    seq_count_list.append([temp_sequence,0,0,0,0,0,0])  #sequence, count, (control count), status, base before, base after, position
+                    
     print(sequence_lines, 'sequence lines')
     seq_count_list = [item for item in seq_count_list if item[1] > 0 ]  # WT Cas12a protospacer
     print('seq_count_list has length' ,len(seq_count_list))
@@ -313,7 +314,7 @@ for file_pair in total_file_list_pairs:
 
         worksheet.write(39, 2, 'mutated sequence')
         worksheet.write(39, 3, 'count')
-        worksheet.write(39, 4, 'count in control ')
+        worksheet.write(39, 4, 'count in control ') # control count is not currently functional
 
         if seq_count_list != []:  # writing counts of sequences found in control file
             row = 40
