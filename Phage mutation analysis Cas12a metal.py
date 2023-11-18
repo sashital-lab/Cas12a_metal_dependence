@@ -52,8 +52,6 @@ total_file_list += glob.glob('*As_A_*')
 total_file_list += glob.glob('*Fn_A_*')
 total_file_list += glob.glob('*Lb_A_*')
 total_file_list += glob.glob('*NT_A*')
-# total_file_list += glob.glob('*Fn_D_12hr*')
-
 
 
 print(total_file_list)
@@ -73,9 +71,10 @@ print(total_file_list_pairs)
 all_sample_info = [] # this will be written on the last sheet containing info for all of the samples processed
 worksheet_all = workbook.add_worksheet('All info')
 
-triple_count = 0 # for nucleotide diversity calculations
+triple_count = 0 # iterated to keep track of triplicate samples for nucleotide diversity calculations
 triple_sequence_lines = 0
-seq_count_list = []  # first instance, need to rest after triplicate
+seq_count_list = []  # used for collecting sequences from three replicates for nucleotide diversity calculations, need to reset after triplicate is complete
+
 nucleotide_diversity = 0
 
 for file_pair in total_file_list_pairs:
