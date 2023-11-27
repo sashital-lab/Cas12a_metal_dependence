@@ -30,7 +30,67 @@ def reverse_comp(in_sequence): #faster way lifted from stackoverflow
 complement_list = [['A', 'T'], ['T', 'A'], ['C', 'G'], ['G', 'C']]
 
 
+def make_file_dict(file_pair): # refined method to categorize the counts and mismatches for sequences in each file 
+    output_dict = {'valid_sequences':0}
 
+    R1_file = open(file_pair[0])
+    R2_file = open(file_pair[1])
+    lines_R1 = R1_file.readlines()
+    lines_R2 = R2_file.readlines()
+    line_count_r1 = 0
+    line_count_r2 = 0
+
+    same_length_sequences = 0
+    matching_sequences = 0
+
+    for line_num in range(len(lines_R1)):  # lines_R1 and R2 SHOULD have the same length
+        temp_sequence_R1 = ''
+        temp_sequence_R2 = ''
+        if lines_R1[line_num].find(to_find1_R1) != -1 and lines_R1[line_num].find(to_find2_R1) != -1:
+            line_count_r1 += 1
+            temp_sequence_R1 = lines_R1[line_num][lines_R1[line_num].find(to_find1_R1) + len(to_find1_R1):   lines_R1[line_num].find(to_find2_R1)]
+
+        if lines_R2[line_num].find(to_find1_R2) != -1 and lines_R2[line_num].find(to_find2_R2) != -1:
+            line_count_r2 += 1
+            temp_sequence_R2 = lines_R2[line_num][lines_R2[line_num].find(to_find1_R2) + len(to_find1_R2): lines_R2[line_num].find(to_find2_R2)]
+
+        if len(temp_sequence_R1) == len(temp_sequence_R2) and len(temp_sequence_R1) > 20 and len(temp_sequence_R2) > 20:
+            # if they are same length, rev complement R2, match with R1
+            # same_length_sequences += 1
+
+
+            if reverse_comp(temp_sequence_R2) == temp_sequence_R1:
+                output_dict['valid_sequences'] += 1
+                temp_sequence = temp_sequence_R1
+                if temp_sequence not in output_dict:
+                    output_dict[temp_sequence] = {'mismatch_positions':[], 'deletion': False}
+                    output_dict[temp_sequence]['count'] = 0
+                else:
+                    output_dict[temp_sequence]['count'] += 1
+
+
+    for sequence in output_dict:
+        if sequence != 'valid_sequences':
+            if len(sequence) < len(perfect_target):  # accounting for deletion sequences first
+                difference = len(perfect_target) - len(sequence)
+                print(difference,'difference')
+                deletion_pos_found = False
+                for x in range(len(sequence)):
+                    if sequence[x] != perfect_target[x]:
+                        deletion_pos_found = True
+                        for mm in range(difference):
+                            output_dict[sequence]['mismatch_positions'].append(x+mm)
+                        break
+                if deletion_pos_found == False: # accounting for deletions at the end of the sequence
+                    for mm in range(difference):
+                        output_dict[sequence]['mismatch_positions'].append(len(perfect_target) -mm -1)
+                output_dict[sequence]['deletion'] = True
+            if len(sequence) == len(perfect_target): # non-deletion sequences
+                for position in range(len(sequence)):
+                    if sequence[position] != perfect_target[position]:
+                        output_dict[sequence]['mismatch_positions'].append(position)
+
+    return output_dict
 
 perfect_target = 'TTTGATGATGATATTGAACAGGAA' #FORWARD orientation
 perfect_target_list = []
