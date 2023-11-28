@@ -3,433 +3,267 @@ import xlsxwriter
 import glob
 
 
-def deletion_fill(in_seq,perfect):
+def deletion_fill(in_seq, perfect):
     length_dif = len(perfect) - len(in_seq)
     out_seq = ''
     mm_found = False
     if length_dif > 0:
         for position in range(len(in_seq)):
             if perfect[position] != in_seq[position]:
-                out_seq = perfect[:position] + (length_dif * 'X') + perfect[position+length_dif:]
+                out_seq = perfect[:position] + (length_dif * 'X') + perfect[position + length_dif:]
                 mm_found = True
                 break
-        if mm_found == False: #happens when deletion is taken from the end
+        if mm_found == False:  # happens when deletion is taken from the end
             out_seq = in_seq + (length_dif * 'X')
         return out_seq
     else:
         return in_seq
 
 
-def reverse_comp(in_sequence): #faster way lifted from stackoverflow
+def reverse_comp(in_sequence):  # faster way lifted from stackoverflow
     complement = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A'}
     seq = in_sequence
     reverse_complement = "".join(complement.get(base, base) for base in reversed(seq))
-    return  reverse_complement
+    return reverse_complement
 
-
-complement_list = [['A', 'T'], ['T', 'A'], ['C', 'G'], ['G', 'C']]
-
-
-def make_file_dict(file_pair): # refined method to categorize the counts and mismatches for sequences in each file 
-    output_dict = {'valid_sequences':0}
-
-    R1_file = open(file_pair[0])
-    R2_file = open(file_pair[1])
-    lines_R1 = R1_file.readlines()
-    lines_R2 = R2_file.readlines()
-    line_count_r1 = 0
-    line_count_r2 = 0
-
-    same_length_sequences = 0
-    matching_sequences = 0
-
-    for line_num in range(len(lines_R1)):  # lines_R1 and R2 SHOULD have the same length
-        temp_sequence_R1 = ''
-        temp_sequence_R2 = ''
-        if lines_R1[line_num].find(to_find1_R1) != -1 and lines_R1[line_num].find(to_find2_R1) != -1:
-            line_count_r1 += 1
-            temp_sequence_R1 = lines_R1[line_num][lines_R1[line_num].find(to_find1_R1) + len(to_find1_R1):   lines_R1[line_num].find(to_find2_R1)]
-
-        if lines_R2[line_num].find(to_find1_R2) != -1 and lines_R2[line_num].find(to_find2_R2) != -1:
-            line_count_r2 += 1
-            temp_sequence_R2 = lines_R2[line_num][lines_R2[line_num].find(to_find1_R2) + len(to_find1_R2): lines_R2[line_num].find(to_find2_R2)]
-
-        if len(temp_sequence_R1) == len(temp_sequence_R2) and len(temp_sequence_R1) > 20 and len(temp_sequence_R2) > 20:
-            # if they are same length, rev complement R2, match with R1
-            # same_length_sequences += 1
-
-
-            if reverse_comp(temp_sequence_R2) == temp_sequence_R1:
-                output_dict['valid_sequences'] += 1
-                temp_sequence = temp_sequence_R1
-                if temp_sequence not in output_dict:
-                    output_dict[temp_sequence] = {'mismatch_positions':[], 'deletion': False}
-                    output_dict[temp_sequence]['count'] = 0
-                else:
-                    output_dict[temp_sequence]['count'] += 1
-
-
-    for sequence in output_dict:
-        if sequence != 'valid_sequences':
-            if len(sequence) < len(perfect_target):  # accounting for deletion sequences first
-                difference = len(perfect_target) - len(sequence)
-                print(difference,'difference')
-                deletion_pos_found = False
-                for x in range(len(sequence)):
-                    if sequence[x] != perfect_target[x]:
-                        deletion_pos_found = True
-                        for mm in range(difference):
-                            output_dict[sequence]['mismatch_positions'].append(x+mm)
-                        break
-                if deletion_pos_found == False: # accounting for deletions at the end of the sequence
-                    for mm in range(difference):
-                        output_dict[sequence]['mismatch_positions'].append(len(perfect_target) -mm -1)
-                output_dict[sequence]['deletion'] = True
-            if len(sequence) == len(perfect_target): # non-deletion sequences
-                for position in range(len(sequence)):
-                    if sequence[position] != perfect_target[position]:
-                        output_dict[sequence]['mismatch_positions'].append(position)
-
+def combine_file_dicts(list_of_dicts):
+    output_dict = {}
+    for dict in list_of_dicts:
+        for item in dict:
+            if item not in output_dict:
+                output_dict[item] = dict[item]
+            elif item in ['valid_sequences', 'wt_sequences', 'mutated_sequences', 'sequence_lines']:
+                output_dict[item] += dict[item]
+            else:
+                output_dict[item]['count'] += dict[item]['count']
     return output_dict
 
-perfect_target = 'TTTGATGATGATATTGAACAGGAA' #FORWARD orientation
+def calculate_diversity(file_dict):
+    diversity = 0
+    for item1 in file_dict:
+        for item2 in file_dict:
+            if item1 != perfect_target and item2 != perfect_target and item1 != item2:
+                if item1 not in ['valid_sequences', 'wt_sequences', 'mutated_sequences', 'sequence_lines']:
+                    if item2 not in ['valid_sequences', 'wt_sequences', 'mutated_sequences', 'sequence_lines']:
+                        div_mismatch_count = 0  # number of mismatches comparing temp1 and temp2
+                        if len(deletion_fill(item1, perfect_target)) == 24 and len(deletion_fill(item2, perfect_target)) == 24:
+                            for h in range(24):
+                                if deletion_fill(item1, perfect_target)[h] != deletion_fill(item2, perfect_target)[h]:
+                                    div_mismatch_count += 1
+                        else:
+                            print("ERROR", perfect_target, len(deletion_fill(temp1, perfect_target)),
+                                  len(deletion_fill(temp2, perfect_target)))
+
+                        diversity += (2 * (file_dict[item1]['count'] / file_dict['valid_sequences']) * (file_dict[item2]['count'] / file_dict['valid_sequences']) * (div_mismatch_count / 24))
+    return diversity
+
+perfect_target = 'TTTGATGATGATATTGAACAGGAA'  # FORWARD orientation
 perfect_target_list = []
 for x in range(len(perfect_target)):
     perfect_target_list += perfect_target[x]
 print(perfect_target_list)
 
-to_find1_R1 = 'TTGCTGCT'  #extract the target sequence between these two sequences from the R1 file
+to_find1_R1 = 'TTGCTGCT'  # extract the target sequence between these two sequences from the R1 file
 to_find2_R1 = 'GGCTCTCC'
 
-to_find1_R2 = 'GGAGAGCC'  #extract the target sequence between these two sequences from the R2 file
+to_find1_R2 = 'GGAGAGCC'  # extract the target sequence between these two sequences from the R2 file
 to_find2_R2 = 'AGCAGCAA'
 
-workbook = xlsxwriter.Workbook('(top)cas12a_escapers A R1R2.xlsx')  # naming the output excel sheet
+workbook_new = xlsxwriter.Workbook('(top)cas12a_escapers A R1R2 testing.xlsx')  # naming the output excel sheet
 
-# selecting files to analyze, here it's all the Cas12a variants
+# selecting files to analyze, here it's all the Cas12a ones and the control
 total_file_list = []
-total_file_list += glob.glob('*As_A_*')
-total_file_list += glob.glob('*Fn_A_*')
-total_file_list += glob.glob('*Lb_A_*')
-total_file_list += glob.glob('*NT_A*')
-
+# total_file_list += glob.glob('*As_A_*')
+# total_file_list += glob.glob('*Fn_A_*')
+# total_file_list += glob.glob('*Lb_A_*')
+# total_file_list += glob.glob('*NT_A*')
+total_file_list += glob.glob('*Lb_A_4hr_1*')
+total_file_list += glob.glob('*Lb_A_4hr_2*')
+total_file_list += glob.glob('*Lb_A_4hr_3*')
 
 print(total_file_list)
-print(len(total_file_list) , 'files gathered')
+print(len(total_file_list), 'files gathered')
 
 file_list_length_half = int(len(total_file_list) / 2)
 print(file_list_length_half)
 
-total_file_list_pairs = [] #this list will contain pairs of files ordered by their order in total file list
-#total file list must be in order or the wrong files will be matched!!
+total_file_list_pairs = []  # this list will contain pairs of files ordered by their order in total file list
+# total file list must be in order or the wrong files will be matched!!
 
 for x in range(file_list_length_half):
-    total_file_list_pairs.append([total_file_list[2*x]] + [total_file_list[2*x + 1]])
+    total_file_list_pairs.append([total_file_list[2 * x]] + [total_file_list[2 * x + 1]])
 
 print(total_file_list_pairs)
 
-all_sample_info = [] # this will be written on the last sheet containing info for all of the samples processed
-worksheet_all = workbook.add_worksheet('All info')
 
-triple_count = 0 # iterated to keep track of triplicate samples for nucleotide diversity calculations
-triple_sequence_lines = 0
-seq_count_list = []  # used for collecting sequences from three replicates for nucleotide diversity calculations, need to reset after triplicate is complete
-
-nucleotide_diversity = 0
-
-for file_pair in total_file_list_pairs:
-
-    triple_count += 1 #dealing with combined triplicates for nuc diversity
-
-    info_list_one_sample = [] # contains the info for only one sample: sample name, % mutated, number of samples over 1% of all reads
-
-    mismatch_list = []  # list for making the mismatch distribution for each file
-    for a in range(len(perfect_target)):
-        mismatch_list.append([0, 0, 0, 0, 0, 0])  # mutation/deletion types: A,T,C,G,deletion,multiple mismatches where A means previous base mutated to A
-
-    sequence_lines = 0    #this represents the total number of valid sequences found, valid = R1R2 match
-    wild_type_sequences = 0
-    single_mm_sequences = 0
-    indel_sequences = 0
-    multi_mm_sequences = 0
-
-
-
-
-    # make a list with values for each file
-    # total counts, WT, 1MM, 1deletion, locations of mm/del, 0,1,2,3,4,5... ,23
-
-
+# for file_pair in total_file_list_pairs:
+def make_file_dict(file_pair):
+    output_dict = {'valid_sequences': 0, 'wt_sequences': 0, 'mutated_sequences': 0, 'sequence_lines': 0}
 
     R1_file = open(file_pair[0])
     R2_file = open(file_pair[1])
-
     lines_R1 = R1_file.readlines()
     lines_R2 = R2_file.readlines()
-
-    print(len(lines_R1))
-    print(len(lines_R2))
-
     line_count_r1 = 0
     line_count_r2 = 0
-
-    same_length_sequences = 0
-    matching_sequences = 0
-
+    output_dict['sequence_lines'] += min(len(lines_R1), len(lines_R2))
     for line_num in range(len(lines_R1)):  # lines_R1 and R2 SHOULD have the same length
         temp_sequence_R1 = ''
         temp_sequence_R2 = ''
         if lines_R1[line_num].find(to_find1_R1) != -1 and lines_R1[line_num].find(to_find2_R1) != -1:
-            temp_sequence_R1 = lines_R1[line_num][lines_R1[line_num].find(to_find1_R1) + len(to_find1_R1): lines_R1[line_num].find(to_find2_R1)]   #72 here because there are many occcurences of "to_find_R1" in the line
             line_count_r1 += 1
-            # print('true')
-            # print(temp_sequence_R1)
-            # print(lines_R1[line_num].find(to_find1_R1))
-            # print(lines_R1[line_num].find(to_find2_R1, 72) )
+            temp_sequence_R1 = lines_R1[line_num][
+                               lines_R1[line_num].find(to_find1_R1) + len(to_find1_R1):   lines_R1[line_num].find(
+                                   to_find2_R1)]
 
         if lines_R2[line_num].find(to_find1_R2) != -1 and lines_R2[line_num].find(to_find2_R2) != -1:
-            temp_sequence_R2 = lines_R2[line_num][lines_R2[line_num].find(to_find1_R2) + len(to_find1_R2): lines_R2[line_num].find(to_find2_R2)]
-            # print(temp_sequence_R2)
             line_count_r2 += 1
+            temp_sequence_R2 = lines_R2[line_num][
+                               lines_R2[line_num].find(to_find1_R2) + len(to_find1_R2): lines_R2[line_num].find(
+                                   to_find2_R2)]
 
-
-
-        if len(temp_sequence_R1) == len(temp_sequence_R2) and len(temp_sequence_R1) > 20 and len(temp_sequence_R2) > 20 :  # if they are same length, rev complement R2, match with R1
-            same_length_sequences += 1
-
+        if len(temp_sequence_R1) == len(temp_sequence_R2) and len(temp_sequence_R1) > 20 and len(temp_sequence_R2) > 20:
+            # if they are same length, rev complement R2, match with R1
+            # same_length_sequences += 1
 
             if reverse_comp(temp_sequence_R2) == temp_sequence_R1:
+                output_dict['valid_sequences'] += 1
+                temp_sequence = temp_sequence_R1
+                if temp_sequence not in output_dict:
+                    output_dict[temp_sequence] = {'mismatch_positions': [], 'deletion': False}
+                    output_dict[temp_sequence]['count'] = 0
+                else:
+                    output_dict[temp_sequence]['count'] += 1
 
-                matching_sequences += 1
-                sequence_lines += 1
-                triple_sequence_lines += 1
-                # print(temp_sequence_R1)
-                temp_sequence = temp_sequence_R1  # the final sequence used for analysis and comparison
-                # print(temp_sequence)
-
-                if len(temp_sequence) < len(perfect_target):  # counting single indels, multiple deletions are ignored
-                    difference = len(perfect_target) - len(temp_sequence)
-                    for x in range(len(temp_sequence)):
-                        if temp_sequence[x] != perfect_target[x]:
-                            for index in range(difference):
-                                mismatch_list[x + index][4] += 1  # 4th position is number of deletions in "mismatch list"
-
-                            break
-                    indel_sequences += 1
-
-
-                all_matching = True
-                complement_base_pos_dict = {'T': 1, 'A': 0, 'G': 3, 'C': 2}
-
-                if len(temp_sequence) == len(perfect_target):
-                    mm_count_temp = 0
-                    for x in range(len(temp_sequence)):  #counting total dmismatches
-                        if temp_sequence[x] != perfect_target[x]:
-                            mm_count_temp += 1
-
-                    for x in range(len(temp_sequence)):
-                        if temp_sequence[x] != perfect_target[x]:
-                            if mm_count_temp == 1: #single mismatches
-                                mismatch_list[x][complement_base_pos_dict[temp_sequence[x]]] += 1
-                                single_mm_sequences += 1
-                                break
-                            if mm_count_temp > 1: #multiple mismatches
-                                mismatch_list[x][5] += 1
-
-
-                    if mm_count_temp == 0 :
-                        wild_type_sequences += 1
-                    if mm_count_temp > 1:
-                        multi_mm_sequences += 1
-
-                # making seq count list for calculation of nucleotide diversity showing information for each sequence
-                #control_count is not functional, need to implement comparison to a control file
-                in_list = False
-                for x in range(len(seq_count_list)):
-                    if temp_sequence in seq_count_list[x][0]:
-                        seq_count_list[x][1] += 1
-                        in_list = True
+    for sequence in output_dict:
+        if sequence not in ['valid_sequences', 'wt_sequences', 'mutated_sequences', 'sequence_lines']:
+            if len(sequence) < len(perfect_target):  # accounting for deletion sequences first
+                difference = len(perfect_target) - len(sequence)
+                deletion_pos_found = False
+                for x in range(len(sequence)):
+                    if sequence[x] != perfect_target[x]:
+                        deletion_pos_found = True
+                        for mm in range(difference):
+                            output_dict[sequence]['mismatch_positions'].append(x + mm)
                         break
-                if in_list == False:
-                    seq_count_list.append([temp_sequence,0,0,0,0,0,0])  #sequence, count, (control count), status, base before, base after, position
-                    
-    print(sequence_lines, 'sequence lines')
-    seq_count_list = [item for item in seq_count_list if item[1] > 0 ]  # WT Cas12a protospacer
-    print('seq_count_list has length' ,len(seq_count_list))
+                if deletion_pos_found == False:  # accounting for deletions at the end of the sequence
+                    for mm in range(difference):
+                        output_dict[sequence]['mismatch_positions'].append(len(perfect_target) - mm - 1)
+                output_dict[sequence]['deletion'] = True
+            if len(sequence) == len(perfect_target):  # non-deletion sequences
+                for position in range(len(sequence)):
+                    if sequence[position] != perfect_target[position]:
+                        output_dict[sequence]['mismatch_positions'].append(position)
 
-    if triple_count == 3:
+        if sequence != perfect_target and sequence not in ['valid_sequences', 'wt_sequences', 'mutated_sequences',
+                                                           'sequence_lines']:
+            output_dict['mutated_sequences'] += output_dict[sequence]['count']
 
-        for sequence4 in seq_count_list:
-            short_length_match = min(len(perfect_target), len(sequence4[0])) #avoiding out of index errors for deletions or extensions
-            for x in range(short_length_match):
-                if sequence4[0][x] != perfect_target[x]:
-                    sequence4[6] = x + 1  #sixth position is mismatch/indel location
-                    sequence4[4] = perfect_target[x]
-                    sequence4[5] = sequence4[0][x]
-                    break
+    if perfect_target in output_dict:
+        output_dict['wt_sequences'] += output_dict[perfect_target]['count']
 
-            mm_count_temp_2 = 0
-
-            for x in range(short_length_match):
-                if sequence4[0][x] != perfect_target[x]:
-                    mm_count_temp_2 += 1
-            if len(sequence4[0]) < len(perfect_target):
-                sequence4[3] = 'deletion'
-            if len(sequence4[0]) > len(perfect_target):
-                sequence4[3] = 'extension'
-            if len(sequence4[0]) == len(perfect_target) and mm_count_temp_2 == 1:
-                sequence4[3] = 'SNP'
-            if len(sequence4[0]) == len(perfect_target) and mm_count_temp_2 > 1:
-                sequence4[3] = 'multi-mismatch'
-            if sequence4[0] == perfect_target:
-                sequence4[3],sequence4[4],sequence4[5],sequence4[6] = 'perfect','perfect','perfect','perfect'
+    return output_dict
 
 
-        #NEW SECTION FOR nucleotide diversity
+def make_mismatch_lib(in_file_dict):
+    mismatch_library = {}  # like former mismatch list for writing to excel sheet for bar graph and stuff
+    categories = ['A', 'T', 'C', 'G', 'deletion', 'multi', 'position_sum']
+    for cat in categories:
+        mismatch_library[cat] = [0] * 24
 
-        for index1 in range(len(seq_count_list) -1):
-            for index2 in range(index1+1, len(seq_count_list)):
-                temp1 = seq_count_list[index1][0]
-                temp2 = seq_count_list[index2][0]
-                if temp1 != perfect_target and temp2 != perfect_target: #ignoring WT sequence contribution to diversity in this version
-                    div_mismatch_count = 0 # number of mismatches comparing temp1 and temp2
-                    if len(deletion_fill(temp1,perfect_target)) == 24 and len(deletion_fill(temp2,perfect_target)) == 24:
-                        for h in range(24):
-                            if deletion_fill(temp1,perfect_target)[h] != deletion_fill(temp2,perfect_target)[h]:
-                                div_mismatch_count += 1
-                    else:
-                        print("ERROR", perfect_target, len(deletion_fill(temp1,perfect_target)),len(deletion_fill(temp2,perfect_target)))
+    for seq in in_file_dict:  # output of make_file_dict
+        if seq != perfect_target and seq not in ['valid_sequences', 'wt_sequences', 'mutated_sequences',
+                                                 'sequence_lines']:
+            if len(in_file_dict[seq]['mismatch_positions']) == 1 and in_file_dict[seq][
+                'deletion'] == False:  # single mm
+                for pos in in_file_dict[seq]['mismatch_positions']:
+                    base = seq[pos]
+                    mismatch_library[base][pos] += in_file_dict[seq]['count']
+            if len(in_file_dict[seq]['mismatch_positions']) > 1 and in_file_dict[seq]['deletion'] == False:  # multi mm
+                for pos in in_file_dict[seq]['mismatch_positions']:
+                    mismatch_library['multi'][pos] += in_file_dict[seq]['count']
+            if in_file_dict[seq]['deletion'] == True:  # deletion
+                for pos in in_file_dict[seq]['mismatch_positions']:
+                    mismatch_library['deletion'][pos] += in_file_dict[seq]['count']
+            if len(seq) < 25:  # basically all not crazy sequences
+                for pos in in_file_dict[seq]['mismatch_positions']:
+                    mismatch_library['position_sum'][pos] += in_file_dict[seq]['count']
+    return mismatch_library
 
-                    nucleotide_diversity += (  2 * (seq_count_list[index1][1]/triple_sequence_lines) * (seq_count_list[index2][1]/triple_sequence_lines) * (div_mismatch_count/24)  )
-                        # print(div_mismatch_count, 'mismatch count', 2 * (seq_count_list[index1][1]/sequence_lines) * (seq_count_list[index2][1]/sequence_lines) * (div_mismatch_count/20) )
 
-        print(seq_count_list)
-        print(nucleotide_diversity, 'nucleotide diversity')
+def create_file_worksheet(workbook,temp_file_dict, mismatch_library,file_name):  # directly adds worksheet to workbook, does not return
+    # for file_pair in total_file_list_pairs:
 
-    for x in range(len(mismatch_list)): #making a fraction of mutated sequences column for heat maps
-        sum = 0
-        for y in range(len(mismatch_list[x])):
-            sum += mismatch_list[x][y]
 
-        mismatch_list[x].append(sum/sequence_lines)
-    print(mismatch_list)
+    temp_mismatch_library = mismatch_library
 
-    if sequence_lines != 0 :  # shouldn't actually need this line if you glob files correctly above
+    if 'NT' in file_name:
+        file_name_short = file_name[0:file_name.find('hr_') + 2]
+    else:
+        file_name_short = file_name[0:file_name.find('hr_') + 4]
+    worksheet = workbook.add_worksheet(file_name_short)
 
-        if 'NT' in file_pair[0]:
-            file_name = file_pair[0][0:file_pair[0].find('hr_') + 2]
-        else:
-            file_name = file_pair[0][0:file_pair[0].find('hr_') + 4]
-        worksheet = workbook.add_worksheet(file_name)
+    worksheet.write_column('B3', perfect_target_list)
+    categories_ordered = ['A', 'T', 'C', 'G', 'deletion', 'multi', 'position_sum']  # order to write data in excel sheet
+    row = 1
+    column = 2
+    for mut_category in categories_ordered:
+        worksheet.write(row, column, mut_category)
+        row += 1
+        for position in range(len(temp_mismatch_library[mut_category])):
+            worksheet.write(row + position, column, temp_mismatch_library[mut_category][position])
+        column += 1
+        row = 1
 
-        info_list_one_sample.append(file_name)
-        #every three times we will actually add nucleotide diversity for the triplicate
-        if triple_count == 3:
-            info_list_one_sample.append(nucleotide_diversity)
-        else:
-            info_list_one_sample.append('triplicate not complete')
-        info_list_one_sample.append(round(((indel_sequences + single_mm_sequences + multi_mm_sequences) / sequence_lines), 2))
-        numerous_sequences = 0
-
-        for sequence in range(len(seq_count_list)):
-            if seq_count_list[sequence][1] > (sequence_lines/100):
-                numerous_sequences += 1
-        info_list_one_sample.append(numerous_sequences)
-        add_list = []
-        for item in mismatch_list:
-            add_list.append(item[6])
-        info_list_one_sample.append(add_list)
-        print(info_list_one_sample)
-        all_sample_info.append(info_list_one_sample)
-
-        # Creating chart object
-        chart = workbook.add_chart({'type': 'column', 'subtype': 'stacked'})
-        # worksheet.write_column('A1', mismatch_list)
-
-        row = 2
-        column = 2
-        for A0, T1, C2, G3, Deletion4, multi_mm_5, fractions in mismatch_list:
-            worksheet.write(row, column, A0)
-            worksheet.write(row, column + 1, T1)
-            worksheet.write(row, column + 2, C2)
-            worksheet.write(row, column + 3, G3)
-            worksheet.write(row, column + 4, Deletion4)
-            worksheet.write(row, column + 5, multi_mm_5)
-            worksheet.write(row, column + 6, fractions)
-            row += 1
-
-        worksheet.write_column('B1', perfect_target_list)
-        name_list = ['A', 'T', 'C', 'G', 'Deletion', 'multi_mm']
-        for type in range(len(name_list)):
-            chart.add_series({'values': [file_name, 2, 2 + type, 2 + len(perfect_target) - 1, 2 + type],
+    # Creating chart object
+    chart = workbook.add_chart({'type': 'column', 'subtype': 'stacked'})
+    for type in range(len(categories_ordered)):
+        if categories_ordered[type] != 'position_sum':
+            chart.add_series({'values': [file_name_short, 2, 2 + type, 2 + len(perfect_target) - 1, 2 + type],
                               # [sheetname, first_row, first_col, last_row, last_col]
-                              'categories': [file_name, 0, 1, 23, 1],
-                              'name': name_list[type]
+                              'categories': [file_name_short, 2, 1, 25, 1],
+                              'name': categories_ordered[type]
                               })  # values strings specifies what values in the excel sheet to make the chart from
 
-        chart.set_x_axis({'name': 'mutation position'})
-        chart.set_y_axis({'name': 'sequence counts'})
+    chart.set_x_axis({'name': 'mutation position'})
+    chart.set_y_axis({'name': 'sequence counts'})
+    worksheet.insert_chart('N3', chart)
 
-        worksheet.insert_chart('N3', chart)
+    row = 2
+    column = 10
+    for item in ['sequence_lines', 'valid_sequences', 'wt_sequences', 'mutated_sequences']:
+        worksheet.write(row, column, temp_file_dict[item])
+        worksheet.write(row, column + 1, item)
+        row += 1
+    worksheet.write(row, column, temp_file_dict['mutated_sequences'] / temp_file_dict['valid_sequences'])
+    worksheet.write(row, column + 1, 'fraction_mutated')
 
-        worksheet.write(39, 2, 'mutated sequence')
-        worksheet.write(39, 3, 'count')
-        worksheet.write(39, 4, 'count in control ') # control count is not currently functional
 
-        if seq_count_list != []:  # writing counts of sequences found in control file
-            row = 40
-            column = 2
-            for sequence1, count, control_count, status, base_before, base_after, position in seq_count_list:
-                worksheet.write(row, column, sequence1)
-                worksheet.write(row, column + 1, count)
-                worksheet.write(row, column + 2, control_count)
-                worksheet.write(row, column + 3, status)
-                worksheet.write(row, column + 4, position)
-                worksheet.write(row, column + 5, base_before)
-                worksheet.write(row, column + 6, 'to')
-                worksheet.write(row, column + 7, base_after)
-                row += 1
-
-        # writing checks to make sure all sequences are accounted for
-        worksheet.write(2, 9, str(sequence_lines) )
-        worksheet.write(2, 10, str("total sequences") )
-        worksheet.write(3, 9, str(single_mm_sequences + indel_sequences) + " single mutation or indel sequences")
-        worksheet.write(4, 9, str(wild_type_sequences) + " wild-type sequences")
-        worksheet.write(5, 9, str(sequence_lines - (indel_sequences + single_mm_sequences + wild_type_sequences + multi_mm_sequences)) + " other sequences")
-        worksheet.write(6, 9, "fraction mutated is " )
-        worksheet.write(6, 10, str(round(((indel_sequences + single_mm_sequences + multi_mm_sequences) / sequence_lines), 2)))
-
-        # values_string = "=" + file_name + "!$A$1:$A$24"
-        # print(values_string)
-        options = {'fill': {'none': True}, 'line': {'none': True}, 'font': {'color': 'black',
-                                                                            'size': 14},
-                   'font': {'underline': True}}
-        worksheet.insert_textbox('R5', 'Mutated Base', options)
-
-        #resetting triplicate things for nucleotide diversity
-        #reset after going through the third replicate
-
+def create_all_info_worksheet(workbook,dict_collection):
+    all_file_info = workbook.add_worksheet('info from all files')
+    row = 0
+    column = 0
+    categories = ['file_name', 'fraction_mutated', 'diversity']
+    for item in categories:
+        all_file_info.write(row, column, item)
+        column += 1
+    column = 0
+    triple_count = 1
+    triple_dict_list = []
+    for item in dict_collection:
+        all_file_info.write(row+1, column, item)
+        all_file_info.write(row+1, column+1, dict_collection[item]['file_dict']['mutated_sequences'] /
+                            dict_collection[item]['file_dict']['valid_sequences'] )
+        triple_dict_list.append(dict_collection[item]['file_dict'])
         if triple_count == 3:
-            triple_count = 0
-            seq_count_list = []
-            triple_sequence_lines = 0
-            nucleotide_diversity = 0
-
-row = 0
-column = 0
-
-for name, diversity, percent, numerous,fractions  in all_sample_info:
-    worksheet_all.write(row, column, name)
-    worksheet_all.write(row, column + 1, diversity)
-    worksheet_all.write(row, column + 2, percent)
-    worksheet_all.write(row, column + 3, numerous)
-
-    column_add = 0
-    for position in fractions:
-        worksheet_all.write(row, column + column_add + 4, position)
-        column_add += 1
-
-    row +=1
+            print('TRIPLE REACHED')
+            diversity = calculate_diversity(combine_file_dicts(triple_dict_list))
+            print(diversity, 'diversity')
+            all_file_info.write(row+1, column+2, diversity)
+            triple_count = 1
+            triple_dict_list = []
+        triple_count += 1
+        row += 1
 
 
 
@@ -437,8 +271,24 @@ for name, diversity, percent, numerous,fractions  in all_sample_info:
 
 
 
+# execution step for most file at each loop
+file_dict_collection = {}  # library with file dictionaries and mismatch libs for each file pair
+#make once for each file to use for further processing
+for file_pair in total_file_list_pairs:
+    file_dict_collection[file_pair[0]] = {'file_dict': make_file_dict(file_pair), 'mismatch_lib': 'NA'}
+    file_dict_collection[file_pair[0]]['mismatch_lib'] = make_mismatch_lib( file_dict_collection[file_pair[0]]['file_dict'])
+
+create_all_info_worksheet(workbook_new,file_dict_collection)  ##########
+for item in file_dict_collection:
+    create_file_worksheet(workbook_new,file_dict_collection[item]['file_dict'], file_dict_collection[item]['mismatch_lib'] ,item)
+
+workbook_new.close()
 
 
+# this will process a dictionary for each file and write values to all_info_worksheet
+# file name, nucleotide diversity, fraction mutated, then 24 position_sum values for heat maps
 
-workbook.close()
 
+# to do, make an all_files_info sheet in the workbook
+# somehow easily collect the data for all the files and add to sheet\
+# calculate nucleotide diversity by combining file_dict first
