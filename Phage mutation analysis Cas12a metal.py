@@ -58,29 +58,39 @@ def calculate_diversity(file_dict): # need to prevent matching of sequences twic
                         diversity += (2 * (file_dict[item1]['count'] / file_dict['valid_sequences']) * (file_dict[item2]['count'] / file_dict['valid_sequences']) * (div_mismatch_count / 24))
     return diversity
 
-perfect_target = 'TTTGATGATGATATTGAACAGGAA'  # FORWARD orientation
-perfect_target_list = []
-for x in range(len(perfect_target)):
-    perfect_target_list += perfect_target[x]
-print(perfect_target_list)
+def target_information_lib(csv_file,target_name):
+    file = open(csv_file)
+    lines = file.readlines()
+    headers = ''
+    info = ''
+    for line in lines:
+        if 'target' in line.split(','):
+            headers = line.split(',')
+        if target_name in line.split(','):
+            info = line.split(',')
+    headers[-1] = headers[-1][:-1]
+    info[-1] = info[-1][:-1]
+    info_dict = dict(zip(headers, info))
+    return info_dict
 
-to_find1_R1 = 'TTGCTGCT'  # extract the target sequence between these two sequences from the R1 file
-to_find2_R1 = 'GGCTCTCC'
 
-to_find1_R2 = 'GGAGAGCC'  # extract the target sequence between these two sequences from the R2 file
-to_find2_R2 = 'AGCAGCAA'
+specific_target_name = 'Gene_A'
+target_info = target_information_lib("Gene target flanking sequences.csv",specific_target_name)
+perfect_target = target_info['perfect_target']  # FORWARD orientation
+to_find1_R1 = target_info['R1_left'] # extract the target sequence between these two sequences from the R1 file
+to_find2_R1 = target_info['R1_right']
+to_find1_R2 = target_info['R2_left'] # extract the target sequence between these two sequences from the R2 file
+to_find2_R2 = target_info['R2_right']
 
-workbook_new = xlsxwriter.Workbook('(top)cas12a_escapers A R1R2 testing.xlsx')  # naming the output excel sheet
+workbook_new = xlsxwriter.Workbook(target_info['workbook_name'])  # naming the output excel sheet
 
 # selecting files to analyze, here it's all the Cas12a ones and the control
 total_file_list = []
-# total_file_list += glob.glob('*As_A_*')
-# total_file_list += glob.glob('*Fn_A_*')
-# total_file_list += glob.glob('*Lb_A_*')
-# total_file_list += glob.glob('*NT_A*')
-total_file_list += glob.glob('*Lb_A_4hr*')
-total_file_list += glob.glob('*Lb_A_6hr*')
-total_file_list += glob.glob('*Lb_A_8hr*')
+total_file_list += glob.glob('*As_A_*')
+total_file_list += glob.glob('*Fn_A_*')
+total_file_list += glob.glob('*Lb_A_*')
+total_file_list += glob.glob('*NT_A*')
+
 
 
 print(total_file_list)
@@ -205,6 +215,9 @@ def create_file_worksheet(workbook,temp_file_dict, mismatch_library,file_name): 
         file_name_short = file_name[0:file_name.find('hr_') + 4]
     worksheet = workbook.add_worksheet(file_name_short)
 
+    perfect_target_list = []
+    for x in range(len(perfect_target)):
+        perfect_target_list += perfect_target[x]
     worksheet.write_column('B3', perfect_target_list)
     categories_ordered = ['A', 'T', 'C', 'G', 'deletion', 'multi', 'position_sum']  # order to write data in excel sheet
     row = 1
@@ -258,8 +271,8 @@ def create_all_info_worksheet(workbook,dict_collection):
                             dict_collection[item]['file_dict']['valid_sequences'] )
         #writing position_sum values for heat maps
         for position in range(len(dict_collection[item]['mismatch_lib']['position_sum'])):
-            all_file_info.write(row+1, column+3+position,dict_collection[item]['mismatch_lib']['position_sum'][position])
-            # print(dict_collection[item]['mismatch_lib']['position_sum'][position])
+            all_file_info.write(row+1, column+3+position,dict_collection[item]['mismatch_lib']['position_sum'][position]/
+                                dict_collection[item]['file_dict']['valid_sequences'])
         triple_dict_list.append(dict_collection[item]['file_dict'])
         if triple_count == 3:
             diversity = calculate_diversity(combine_file_dicts(triple_dict_list))
