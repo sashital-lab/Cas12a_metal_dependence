@@ -19,7 +19,6 @@ def deletion_fill(in_seq, perfect):
     else:
         return in_seq
 
-
 def reverse_comp(in_sequence):  # faster way lifted from stackoverflow
     complement = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A'}
     seq = in_sequence
@@ -38,21 +37,23 @@ def combine_file_dicts(list_of_dicts):
                 output_dict[item]['count'] += dict[item]['count']
     return output_dict
 
-def calculate_diversity(file_dict):
+def calculate_diversity(file_dict): # need to prevent matching of sequences twice
     diversity = 0
+    counted_list = []
     for item1 in file_dict:
+        counted_list.append(item1)
         for item2 in file_dict:
-            if item1 != perfect_target and item2 != perfect_target and item1 != item2:
+            if item1 != perfect_target and item2 != perfect_target and item1 != item2 and item2 not in counted_list:
                 if item1 not in ['valid_sequences', 'wt_sequences', 'mutated_sequences', 'sequence_lines']:
                     if item2 not in ['valid_sequences', 'wt_sequences', 'mutated_sequences', 'sequence_lines']:
-                        div_mismatch_count = 0  # number of mismatches comparing temp1 and temp2
+                        div_mismatch_count = 0  # number of mismatches comparing item1 and item2
                         if len(deletion_fill(item1, perfect_target)) == 24 and len(deletion_fill(item2, perfect_target)) == 24:
                             for h in range(24):
                                 if deletion_fill(item1, perfect_target)[h] != deletion_fill(item2, perfect_target)[h]:
                                     div_mismatch_count += 1
                         else:
-                            print("ERROR", perfect_target, len(deletion_fill(temp1, perfect_target)),
-                                  len(deletion_fill(temp2, perfect_target)))
+                            print("ERROR", perfect_target, len(deletion_fill(item1, perfect_target)),
+                                  len(deletion_fill(item2, perfect_target)))
 
                         diversity += (2 * (file_dict[item1]['count'] / file_dict['valid_sequences']) * (file_dict[item2]['count'] / file_dict['valid_sequences']) * (div_mismatch_count / 24))
     return diversity
@@ -77,9 +78,10 @@ total_file_list = []
 # total_file_list += glob.glob('*Fn_A_*')
 # total_file_list += glob.glob('*Lb_A_*')
 # total_file_list += glob.glob('*NT_A*')
-total_file_list += glob.glob('*Lb_A_4hr_1*')
-total_file_list += glob.glob('*Lb_A_4hr_2*')
-total_file_list += glob.glob('*Lb_A_4hr_3*')
+total_file_list += glob.glob('*Lb_A_4hr*')
+total_file_list += glob.glob('*Lb_A_6hr*')
+total_file_list += glob.glob('*Lb_A_8hr*')
+
 
 print(total_file_list)
 print(len(total_file_list), 'files gathered')
@@ -254,41 +256,30 @@ def create_all_info_worksheet(workbook,dict_collection):
         all_file_info.write(row+1, column, item)
         all_file_info.write(row+1, column+1, dict_collection[item]['file_dict']['mutated_sequences'] /
                             dict_collection[item]['file_dict']['valid_sequences'] )
+        #writing position_sum values for heat maps
+        for position in range(len(dict_collection[item]['mismatch_lib']['position_sum'])):
+            all_file_info.write(row+1, column+3+position,dict_collection[item]['mismatch_lib']['position_sum'][position])
+            # print(dict_collection[item]['mismatch_lib']['position_sum'][position])
         triple_dict_list.append(dict_collection[item]['file_dict'])
         if triple_count == 3:
-            print('TRIPLE REACHED')
             diversity = calculate_diversity(combine_file_dicts(triple_dict_list))
-            print(diversity, 'diversity')
             all_file_info.write(row+1, column+2, diversity)
-            triple_count = 1
+            triple_count = 0
             triple_dict_list = []
         triple_count += 1
         row += 1
 
 
-
-
-
-
-
-# execution step for most file at each loop
+# execution step for processing all files that were pooled
 file_dict_collection = {}  # library with file dictionaries and mismatch libs for each file pair
 #make once for each file to use for further processing
 for file_pair in total_file_list_pairs:
     file_dict_collection[file_pair[0]] = {'file_dict': make_file_dict(file_pair), 'mismatch_lib': 'NA'}
     file_dict_collection[file_pair[0]]['mismatch_lib'] = make_mismatch_lib( file_dict_collection[file_pair[0]]['file_dict'])
 
-create_all_info_worksheet(workbook_new,file_dict_collection)  ##########
+create_all_info_worksheet(workbook_new,file_dict_collection)
 for item in file_dict_collection:
     create_file_worksheet(workbook_new,file_dict_collection[item]['file_dict'], file_dict_collection[item]['mismatch_lib'] ,item)
 
 workbook_new.close()
 
-
-# this will process a dictionary for each file and write values to all_info_worksheet
-# file name, nucleotide diversity, fraction mutated, then 24 position_sum values for heat maps
-
-
-# to do, make an all_files_info sheet in the workbook
-# somehow easily collect the data for all the files and add to sheet\
-# calculate nucleotide diversity by combining file_dict first
