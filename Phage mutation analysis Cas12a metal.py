@@ -1,4 +1,3 @@
-
 import xlsxwriter
 import glob
 
@@ -19,7 +18,10 @@ def deletion_fill(in_seq, perfect):
     else:
         return in_seq
 
-def reverse_comp(in_sequence):  # faster way lifted from stackoverflow
+def reverse_comp(in_sequence):  
+    '''
+    faster way lifted from stackoverflow
+    '''
     complement = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A'}
     seq = in_sequence
     reverse_complement = "".join(complement.get(base, base) for base in reversed(seq))
@@ -37,7 +39,13 @@ def combine_file_dicts(list_of_dicts):
                 output_dict[item]['count'] += dict[item]['count']
     return output_dict
 
-def calculate_diversity(file_dict): # need to prevent matching of sequences twice
+def calculate_diversity(file_dict):
+    '''
+    This is meant to be used after combining dictionaries for three replicates
+    perfect_target sequences do not contribute to diversity value.
+    deletion fill is used so deletions are counted as sequences with 
+    some number of mismatches
+    '''
     diversity = 0
     counted_list = []
     for item1 in file_dict:
@@ -47,7 +55,8 @@ def calculate_diversity(file_dict): # need to prevent matching of sequences twic
                 if item1 not in ['valid_sequences', 'wt_sequences', 'mutated_sequences', 'sequence_lines']:
                     if item2 not in ['valid_sequences', 'wt_sequences', 'mutated_sequences', 'sequence_lines']:
                         div_mismatch_count = 0  # number of mismatches comparing item1 and item2
-                        if len(deletion_fill(item1, perfect_target)) == 24 and len(deletion_fill(item2, perfect_target)) == 24:
+                        if len(deletion_fill(item1, perfect_target)) == 24 and len(
+                                deletion_fill(item2, perfect_target)) == 24:
                             for h in range(24):
                                 if deletion_fill(item1, perfect_target)[h] != deletion_fill(item2, perfect_target)[h]:
                                     div_mismatch_count += 1
@@ -55,10 +64,17 @@ def calculate_diversity(file_dict): # need to prevent matching of sequences twic
                             print("ERROR", perfect_target, len(deletion_fill(item1, perfect_target)),
                                   len(deletion_fill(item2, perfect_target)))
 
-                        diversity += (2 * (file_dict[item1]['count'] / file_dict['valid_sequences']) * (file_dict[item2]['count'] / file_dict['valid_sequences']) * (div_mismatch_count / 24))
+                        diversity += (2 * (file_dict[item1]['count'] / file_dict['valid_sequences']) * (
+                                    file_dict[item2]['count'] / file_dict['valid_sequences']) * (
+                                                  div_mismatch_count / 24))
     return diversity
 
-def target_information_lib(csv_file,target_name):
+def target_information_lib(csv_file, target_name):
+    '''
+    accesses the file containing target flanking sequences 
+    and name of workbook to pool information used when extracting
+    sequences from fastq files
+    '''
     file = open(csv_file)
     lines = file.readlines()
     headers = ''
@@ -73,13 +89,12 @@ def target_information_lib(csv_file,target_name):
     info_dict = dict(zip(headers, info))
     return info_dict
 
-
-specific_target_name = 'Gene_A'
-target_info = target_information_lib("Gene target flanking sequences.csv",specific_target_name)
-perfect_target = target_info['perfect_target']  # FORWARD orientation
-to_find1_R1 = target_info['R1_left'] # extract the target sequence between these two sequences from the R1 file
+specific_target_name = 'Gene_A' #change this to specify the target to look for
+target_info = target_information_lib("Gene target flanking sequences.csv", specific_target_name)
+perfect_target = target_info['perfect_target']  # target is in the forward orientation matching R1 reads
+to_find1_R1 = target_info['R1_left']  # extract the target sequence between these two sequences from the R1 file
 to_find2_R1 = target_info['R1_right']
-to_find1_R2 = target_info['R2_left'] # extract the target sequence between these two sequences from the R2 file
+to_find1_R2 = target_info['R2_left']  # extract the target sequence between these two sequences from the R2 file
 to_find2_R2 = target_info['R2_right']
 
 workbook_new = xlsxwriter.Workbook(target_info['workbook_name'])  # naming the output excel sheet
@@ -87,11 +102,9 @@ workbook_new = xlsxwriter.Workbook(target_info['workbook_name'])  # naming the o
 # selecting files to analyze, here it's all the Cas12a ones and the control
 total_file_list = []
 total_file_list += glob.glob('*As_A_*')
-total_file_list += glob.glob('*Fn_A_*')
-total_file_list += glob.glob('*Lb_A_*')
-total_file_list += glob.glob('*NT_A*')
-
-
+# total_file_list += glob.glob('*Fn_A_*')
+# total_file_list += glob.glob('*Lb_A_*')
+# total_file_list += glob.glob('*NT_A*')
 
 print(total_file_list)
 print(len(total_file_list), 'files gathered')
@@ -108,8 +121,12 @@ for x in range(file_list_length_half):
 print(total_file_list_pairs)
 
 
-# for file_pair in total_file_list_pairs:
 def make_file_dict(file_pair):
+    '''
+    takes a pair of files which are R1 and R2 miseq reads
+    outputs a dictionary total numbers of sequences that are processed
+    and classifies the position of mismatches relative to the WT sequence
+    '''
     output_dict = {'valid_sequences': 0, 'wt_sequences': 0, 'mutated_sequences': 0, 'sequence_lines': 0}
 
     R1_file = open(file_pair[0])
@@ -176,8 +193,14 @@ def make_file_dict(file_pair):
 
     return output_dict
 
-
 def make_mismatch_lib(in_file_dict):
+    '''
+    takes a file dict and further classifies sequences with mismatch type
+    makes a dictionary that is basically an array with "rows" 
+    corresponding to mismatch types. The values are raw counts that are not 
+    adjusted for total sequences in the file
+    '''
+
     mismatch_library = {}  # like former mismatch list for writing to excel sheet for bar graph and stuff
     categories = ['A', 'T', 'C', 'G', 'deletion', 'multi', 'position_sum']
     for cat in categories:
@@ -202,13 +225,13 @@ def make_mismatch_lib(in_file_dict):
                     mismatch_library['position_sum'][pos] += in_file_dict[seq]['count']
     return mismatch_library
 
-
-def create_file_worksheet(workbook,temp_file_dict, mismatch_library,file_name):  # directly adds worksheet to workbook, does not return
-    # for file_pair in total_file_list_pairs:
-
-
+def create_file_worksheet(workbook, temp_file_dict, mismatch_library,file_name):
+    '''
+    takes in a mismatch_library which contains positional and type information for mismatches
+    directly adds worksheet to workbook, does not return
+    creates a worksheet with more detailed information for each input file such as stacked bar charts
+    '''
     temp_mismatch_library = mismatch_library
-
     if 'NT' in file_name:
         file_name_short = file_name[0:file_name.find('hr_') + 2]
     else:
@@ -253,8 +276,13 @@ def create_file_worksheet(workbook,temp_file_dict, mismatch_library,file_name): 
     worksheet.write(row, column, temp_file_dict['mutated_sequences'] / temp_file_dict['valid_sequences'])
     worksheet.write(row, column + 1, 'fraction_mutated')
 
-
-def create_all_info_worksheet(workbook,dict_collection):
+def create_all_info_worksheet(workbook, dict_collection):
+    '''
+    takes a collection of dictionaries made from processing all files
+    creates a worksheet with information for all files, calculates diversity from three replicate files
+    pooled files are accessed sequentially so they must be in the correct order for the correct
+    triplicate files to be combined with combine_file_dicts
+    '''
     all_file_info = workbook.add_worksheet('info from all files')
     row = 0
     column = 0
@@ -266,33 +294,40 @@ def create_all_info_worksheet(workbook,dict_collection):
     triple_count = 1
     triple_dict_list = []
     for item in dict_collection:
-        all_file_info.write(row+1, column, item)
-        all_file_info.write(row+1, column+1, dict_collection[item]['file_dict']['mutated_sequences'] /
-                            dict_collection[item]['file_dict']['valid_sequences'] )
-        #writing position_sum values for heat maps
+        all_file_info.write(row + 1, column, item)
+        all_file_info.write(row + 1, column + 1, dict_collection[item]['file_dict']['mutated_sequences'] /
+                            dict_collection[item]['file_dict']['valid_sequences'])
+        # writing position_sum values for heat maps
         for position in range(len(dict_collection[item]['mismatch_lib']['position_sum'])):
-            all_file_info.write(row+1, column+3+position,dict_collection[item]['mismatch_lib']['position_sum'][position]/
+            all_file_info.write(row + 1, column + 3 + position,
+                                dict_collection[item]['mismatch_lib']['position_sum'][position] /
                                 dict_collection[item]['file_dict']['valid_sequences'])
         triple_dict_list.append(dict_collection[item]['file_dict'])
         if triple_count == 3:
             diversity = calculate_diversity(combine_file_dicts(triple_dict_list))
-            all_file_info.write(row+1, column+2, diversity)
+            all_file_info.write(row + 1, column + 2, diversity)
             triple_count = 0
             triple_dict_list = []
         triple_count += 1
         row += 1
 
 
-# execution step for processing all files that were pooled
-file_dict_collection = {}  # library with file dictionaries and mismatch libs for each file pair
-#make once for each file to use for further processing
+# library with file dictionaries and mismatch libs for each file pair
+# make once for each file to use for further processing
+file_dict_collection = {}
+
+# execution step for processing all files that were pooled and making the dictionary collection
 for file_pair in total_file_list_pairs:
     file_dict_collection[file_pair[0]] = {'file_dict': make_file_dict(file_pair), 'mismatch_lib': 'NA'}
-    file_dict_collection[file_pair[0]]['mismatch_lib'] = make_mismatch_lib( file_dict_collection[file_pair[0]]['file_dict'])
+    file_dict_collection[file_pair[0]]['mismatch_lib'] = make_mismatch_lib(
+        file_dict_collection[file_pair[0]]['file_dict'])
 
-create_all_info_worksheet(workbook_new,file_dict_collection)
+# using the dictionary collection to create separate and combined worksheets
+create_all_info_worksheet(workbook_new, file_dict_collection)
 for item in file_dict_collection:
-    create_file_worksheet(workbook_new,file_dict_collection[item]['file_dict'], file_dict_collection[item]['mismatch_lib'] ,item)
+    create_file_worksheet(workbook_new, file_dict_collection[item]['file_dict'],
+                          file_dict_collection[item]['mismatch_lib'], item)
 
 workbook_new.close()
+
 
