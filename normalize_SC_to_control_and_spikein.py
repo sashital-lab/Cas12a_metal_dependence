@@ -2,6 +2,7 @@
 # It also puts out an average file that can be used to generate heatmaps.
 # It is agnostic to how many replicates there were in each experimental or control file, in case there were reps with low reads.
 
+
 import sys
 import os
 
@@ -10,6 +11,7 @@ input_file = sys.argv[1]
 base_filename = os.path.splitext(os.path.basename(input_file))[0]
 output_file = base_filename.replace("_counts", "") + ".txt"
 output_file_ave = base_filename.replace("_counts", "_ave") + ".txt"
+output_label = base_filename.replace("_counts", "")
 
 # Read data from the experimental sample input file
 experimental_data = {}
@@ -120,5 +122,6 @@ with open(output_file_ave, "w") as out_file:
 
         out_file.write("{}\t{}\n".format(sequence, formatted_avg_value))
 
-print(f"Normalized data written to {output_file}")
-print(f"Average values written to {output_file_ave}")
+# print(f"Normalized data written to {output_file}")
+# print(f"Average values written to {output_file_ave}")
+print(output_label + "\t" + "\t".join(map(str, normalization_factors)))
